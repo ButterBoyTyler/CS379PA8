@@ -6,16 +6,10 @@ Cell, evaluate(), and FunctionDecl are already provided -- do not
 modify them. See the assignment, Part B, for the
 full requirements.
 
-Design note (filling a gap in the assignment spec): Requirement 1
-says value-result mode must write the callee's final local value back
-to the caller "only when the function returns" -- but bind_parameters
-runs once, at CALL time, before the body executes. One function alone
-can't do both "bind at call time" and "write back at return time," so
-this starter adds a second function, commit_value_result, called
-AFTER the simulated function body finishes. bind_parameters sets up
-bookkeeping for value-result parameters (a list of (param_name,
-caller_var_name) pairs), and commit_value_result uses it to do the
-delayed write-back.
+Value-result binding has two steps: bind_parameters runs at call time
+and records each caller destination; commit_value_result runs after
+the simulated body and copies the final local values back in parameter
+order. The handout specifies both steps.
 
 Design note 2: variables are stored as Cell objects (a mutable box),
 not raw values, specifically so reference-mode parameters can share
@@ -74,40 +68,63 @@ def assign_through(env: Environment, name: str, value: Any) -> None:
 
 
 def bind_parameters(param_specs: List[Tuple[str, str]], arg_nodes: list, caller_env: Environment, callee_record) -> None:
-    """
-    Populate callee_record.locals_env according to each parameter's
-    mode ("value", "reference", or "value-result"). For value-result
-    parameters, also record what commit_value_result needs to do the
-    delayed write-back later -- store it whichever way you like (e.g.
-    an attribute on callee_record such as callee_record.pending_writeback).
-    """
-    # TODO
-    raise NotImplementedError
+    callee_record.pending_writeback = []
+
+    for (param_name, mode), arg in zip(param_specs, arg_nodes):
+        if mode == "value":
+            value = evaluate(arg, caller_env) if isinstance(arg, (Number, Variable, BinOp)) else arg
+            callee_record.locals_env.define(param_name, Cell(value))
+
+        elif mode == "reference":
+            if not isinstance(arg, Variable):
+                raise ValueError("Reference parameter requires a variable argument")
+            callee_record.locals_env.define(param_name, caller_env.resolve(arg.name))
+
+        elif mode == "value-result":
+            if not isinstance(arg, Variable):
+                raise ValueError("Value-result parameter requires a variable argument")
+            original_cell = caller_env.resolve(arg.name)
+            callee_record.locals_env.define(param_name, Cell(original_cell.value))
+            callee_record.pending_writeback.append((param_name, original_cell))
+
+        else:
+            raise ValueError(f"Unknown parameter mode: {mode}")
 
 
 def commit_value_result(callee_record, caller_env: Environment) -> None:
-    """
-    For every value-result parameter bound by bind_parameters on this
-    callee_record, copy its FINAL local value back into the caller's
-    corresponding variable now (call this only after the callee's body
-    has finished running).
-    """
-    # TODO
-    raise NotImplementedError
+    for param_name, original_cell in getattr(callee_record, "pending_writeback", []):
+        local_cell = callee_record.locals_env.resolve(param_name)
+        original_cell.value = local_cell.value
 
 
 class Closure:
     def __init__(self, declaration: FunctionDecl, defining_env: Environment) -> None:
-        # TODO
-        raise NotImplementedError
+        self.declaration = declaration
+        self.defining_env = defining_env
 
     def call(self, args: list, caller_env: Environment):
-        """
-        Create the callee Environment as a child of self.defining_env
-        (NOT caller_env) -- this is what makes closure capture work.
-        Bind each declaration.params[i] to args[i] (already-evaluated
-        values, wrapped in a Cell), then evaluate declaration.body in
-        that new environment and return the result.
-        """
-        # TODO
-        raise NotImplementedError
+        if len(args) != len(self.declaration.params):
+            raise TypeError(
+                f"Expected {len(self.declaration.params)} arguments, got {len(args)}"
+            )
+
+        callee_env = Environment(parent=self.defining_env)
+
+        class CalleeRecord:
+            pass
+
+        callee_record = CalleeRecord()
+        callee_record.locals_env = callee_env
+
+        param_specs = [
+            (param_name, "value")
+            for param_name in self.declaration.params
+        ]
+
+        for param_name, arg in zip(self.declaration.params, args):
+            value = arg.value if isinstance(arg, Cell) else arg
+            callee_env.define(param_name, Cell(value))
+
+        result = evaluate(self.declaration.body, callee_env)
+        commit_value_result(callee_record, caller_env)
+        return result

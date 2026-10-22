@@ -1,5 +1,5 @@
 """
-PA 5 dependency: paste in YOUR OWN completed PA 4 symtable.py here.
+PA 4: The USILang Symbol Table -- starter.
 
 Complete Environment and check_program below. See
 PA_04_The_USILang_Symbol_Table.md, Part B, for the full requirements.
@@ -26,16 +26,29 @@ class Environment:
         shadowing a parent name is allowed).
         """
         # TODO
-        raise NotImplementedError
+        if name in self._names:
+            original_line = self._names[name]
+            raise SemanticError(
+                f"Duplicate declaration of '{name}' (line {line}; "
+                f"originally declared line {original_line})."
+            )
+        self._names[name] = line
+        
 
-    def resolve(self, name: str) -> int:
+    def resolve(self, name: str, line: Optional[int] = None) -> int:
         """
         Look up `name` in this scope, then climb `parent` links.
         Return the declaration line, or raise SemanticError if not
         found anywhere in the chain.
         """
         # TODO
-        raise NotImplementedError
+        if name in self._names:
+            return self._names[name]
+        if self.parent is not None:
+            return self.parent.resolve(name, line)
+        where = f" (line {line})" if line is not None else ""
+        raise SemanticError(f"Use of undeclared variable '{name}'{where}.")
+        
 
 
 def check_program(ast: Program) -> Environment:
@@ -48,4 +61,28 @@ def check_program(ast: Program) -> Environment:
     offending statement, not be collected and reported together.
     """
     # TODO
-    raise NotImplementedError
+    env = Environment()
+
+    def check_expr(expr) -> None:
+        if isinstance(expr, Variable):
+            env.resolve(expr.name, expr.line)
+        elif isinstance(expr, BinOp):
+            check_expr(expr.left)
+            check_expr(expr.right)
+        elif isinstance(expr, Number):
+            pass
+        else:
+            raise TypeError(f"Unknown expression node: {expr!r}")
+
+    for stmt in ast.statements:
+        if isinstance(stmt, Declaration):
+            check_expr(stmt.expr)
+            env.define(stmt.name, stmt.line)
+        elif isinstance(stmt, Assignment):
+            env.resolve(stmt.name, stmt.line)
+            check_expr(stmt.expr)
+        else:
+            raise TypeError(f"Unknown statement node: {stmt!r}")
+
+    return env
+    

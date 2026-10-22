@@ -1,43 +1,25 @@
-# PA 8: The VTable Dispatcher
+# PA 6: The Activation Record
 
-Public instructor template: https://github.com/cwillpinto/cs379-pa08-vtable-dispatcher
-
-Full assignment: `PA_08_The_VTable_Dispatcher.md` in the template repository or
-the CS379 course handout. Create your own repository from the template, clone it
-locally, and push completed work only to your repository.
-
-For a direct clone, first create an empty repository under your account, then
-rename the instructor remote before adding your own:
-
-```bash
-git remote rename origin upstream
-git remote add origin https://github.com/YOUR-ACCOUNT/YOUR-PA8-REPO.git
-git remote -v
-git push -u origin main
-```
-
-Check that `origin` points to your account. Use your actual branch name if it
-is not `main`. Follow the course handout and Blackboard assignment for the
-required submission items and deadline.
+Full assignment: `PA_06_The_Activation_Record.md`.
 
 ## Setup
-Paste your own completed prior-stage files in first (`lexer.py`,
-`parser.py`, `symtable.py`, `frames.py`, `parameters.py` -- only
-bundled for pipeline continuity; this PA's new code doesn't call into
-most of them directly).
+Paste your own completed `lexer.py`/`parser.py`/`symtable.py` in
+first (bundled for the `Environment` class; see the note at the top
+of `frames.py` for why this PA's test harness doesn't parse real
+USILang function syntax).
 
 ## Run
 ```bash
-python test_dispatcher.py
+python test_frames.py
 ```
-Complete `VTable`, `build_vtable`, `USIObject`, and `dispatch` in
-`dispatcher.py`. The harness builds the Animal → Dog → Puppy hierarchy
-from Part A, checks overrides, inheritance fall-through, that
-unoverridden slots share the identical underlying method (not a copy),
-dynamic dispatch, and error handling. Success Token: prints
-`VTABLE_DISPATCH_VERIFIED`.
+Complete `ActivationRecord` and `CallStack` in `frames.py`. The
+harness simulates `factorial(5)`/`factorial(4)` and a nested-function
+call sequence, checking max stack depth, `dynamic_link` correctness,
+and that `static_link` differs from `dynamic_link` for the nested
+case. Prints the literal string `ACTIVATION_RECORD_VERIFIED` (not a
+generated token, per the assignment) once every check passes.
 
 ## Submit
-1. `PA8_Theory.pdf` (or `.md`)
-2. `dispatcher.py` (and your working prior-stage files)
-3. Terminal output/screenshot showing `VTABLE_DISPATCH_VERIFIED`
+1. `PA6_Theory.pdf` (or `.md`)
+2. `frames.py` (and your working `lexer.py`/`parser.py`/`symtable.py`)
+3. Terminal output/screenshot showing `ACTIVATION_RECORD_VERIFIED`
